@@ -1,0 +1,18 @@
+#welcome to the sad life
+
+library(caret)
+library(dplyr)
+library(e1071)
+library(MASS)
+library(mlbench)
+
+hDisease<-read.csv("heart-disease.csv",fileEncoding="UTF-8-BOM")
+summary(hDisease) #need to change target to factor
+hDisease<-hDisease%>%mutate(dis=factor(ifelse(target==1,"Disease","Healthy")))
+
+#Explore individual relationship between variables and heart disease
+#confusion matrices and chi-squared for cat, bar/scatter and t-test for cont
+
+table(hDisease$sex,hDisease$target) #Gender proportion, can do chi-squared
+
+ggplot(hDisease,aes(age,sex,col=dis))+geom_point()
