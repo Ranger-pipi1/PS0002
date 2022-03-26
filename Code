@@ -14,5 +14,6 @@ hDisease<-hDisease%>%mutate(dis=factor(ifelse(target==1,"Disease","Healthy")))
 #confusion matrices and chi-squared for cat, bar/scatter and t-test for cont
 
 table(hDisease$sex,hDisease$target) #Gender proportion, can do chi-squared
+#establish there may be some distinction between genders
 
-ggplot(hDisease,aes(age,sex,col=dis))+geom_point()
+ggplot(hDisease,aes(age,sex,col=dis))+geom_point() #No check for onset, this is current age not onset
