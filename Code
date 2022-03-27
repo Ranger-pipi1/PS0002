@@ -47,7 +47,7 @@ ggplot(hDisease,aes(fill=dis,x=ca))+geom_bar(stat="bin",binwidth=0.5)
 
 ggplot(hDisease,aes(fill=dis,x=thal))+geom_bar(stat="bin",binwidth=0.5) #unclear
 
-#Cont variables, box to a summary of the differences between cont var in healthy vs diseased
+#Cont variables, box to a summary of the differences between cont var in healthy vs diseased, consider histogram too?
 ggplot(hDisease,aes(age,sex,col=dis))+geom_point()#not very helpful
 ggplot(hDisease,aes(dis,age))+geom_boxplot() #median age of healthy is higher, less dispersed
 ggplot(hDisease,aes(dis,trestbps))+geom_boxplot() #doesn't look significantly diff
@@ -62,3 +62,51 @@ ggplot(hDisease,aes(dis,thalach))+geom_boxplot() #thalach higher of diseased, le
 ggplot(hDisease,aes(dis,oldpeak))+geom_boxplot() # much lower for disease, weaker heart?
 
 #correlation between cont variables
+#First check which are worth exploring
+pairs.panels(hDcont[,-c(2,7,8)],method="pearson",hist.col="red",pch=21,bg=c("green","blue")[(hDcont$dis)],density=TRUE,ellipses=FALSE)
+#In general, no strong correlation between varaiables (age col acting weird)
+
+hDcontH<-hDcont%>%filter(dis %in% c("Healthy"))
+pairs.panels(hDcontH[,-c(2,7,8)],method="pearson",hist.col="red",pch=21,bg=c("green","blue")[(hDcontH$dis)],density=TRUE,ellipses=FALSE)
+#no relation
+
+hDcontD<-hDcont%>%filter(dis %in% c("Disease"))
+pairs.panels(hDcontD[,-c(2,7,8)],method="pearson",hist.col="red",pch=21,bg=c("green","blue")[(hDcontD$dis)],density=TRUE,ellipses=FALSE)
+#age/thalach worth looking into
+
+#can also just try feeding inputs to a chosen, sig variable
+
+#classification part
+set.seed(1999)
+train.index<-sample(1:nrow(hDisease),size=nrow(hDisease)*0.8)
+train.set<-hDisease[train.index,]
+test.set<-hDisease[-train.index,]
+#kNN
+#logistic regression
+#svm (pretty sure don't have to normalise? Original can get 88% accuracy, I only got 80%)
+dis.svmL<-svm(dis~age+sex+cp+trestbps+chol+fbs+restecg+thalach+exang+oldpeak+slope+ca+thal,data=train.set,kernel="linear") #linear svm
+pred.svmL<-predict(dis.svmL,newdata=test.set[,1:13])
+table(pred.svmL,test.set$dis) #favours false -ve
+mean(pred.svmL==test.set$dis) #about 80% accuracy
+
+dis.svm.polT<-tune.svm(dis~age+sex+cp+trestbps+chol+fbs+restecg+thalach+exang+oldpeak+slope+ca+thal,data=train.set,kernel="polynomial",cost=10^(-2:2),gamma=c(0.1,0.5,1,2,3),degree=4)
+dis.svmP<-dis.svm.polT$best.model #poly kern SVM
+pred.svmP<-predict(dis.svmP,newdata=test.set[,1:13])
+table(pred.svmP,test.set$dis) #also favours false -ve
+mean(pred.svmP==test.set$dis) # slightly worse than linear
+
+dis.svm.radT<-tune.svm(dis~age+sex+cp+trestbps+chol+fbs+restecg+thalach+exang+oldpeak+slope+ca+thal,data=train.set,kernel="radial",cost=10^(-2:2),gamma=c(0.1,0.5,1,2,3))
+dis.svmR<-dis.svm.radT$best.model #rad kern SVM
+pred.svmR<-predict(dis.svmR,newdata=test.set[,1:13])
+table(pred.svmR,test.set$dis)
+mean(pred.svmR==test.set$dis) #same as linear
+
+dis.svm.sigT<-tune.svm(dis~age+sex+cp+trestbps+chol+fbs+restecg+thalach+exang+oldpeak+slope+ca+thal,data=train.set,kernel="sigmoid",cost=10^(-2:2),gamma=c(0.1,0.5,1,2,3),coef0=c(-2:2))
+dis.svmS<-dis.svm.sigT$best.model #sigmoid kern SVM
+pred.svmS<-predict(dis.svmS,newdata=test.set[,1:13])
+table(pred.svmS,test.set$dis) 
+mean(pred.svmS==test.set$dis) #slightly worse than linear
+#conclusion, different kernels don't produce different results, use linear for less comp load
+
+#comparison and analysis
+
