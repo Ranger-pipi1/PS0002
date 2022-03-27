@@ -89,7 +89,7 @@ pred.svmL<-predict(dis.svmL,newdata=test.set[,1:13])
 table(pred.svmL,test.set$dis) #favours false -ve
 mean(pred.svmL==test.set$dis) #about 80% accuracy
 
-dis.svm.polT<-tune.svm(dis~age+sex+cp+trestbps+chol+fbs+restecg+thalach+exang+oldpeak+slope+ca+thal,data=train.set,kernel="polynomial",cost=10^(-2:2),gamma=c(0.1,0.5,1,2,3),degree=4)
+dis.svm.polT<-tune.svm(dis~age+sex+cp+trestbps+chol+fbs+restecg+thalach+exang+oldpeak+slope+ca+thal,data=train.set,kernel="polynomial",cost=10^(-2:2),gamma=c(0.1,0.5,1,2,3),degree=4,coef0=c(-2:2))
 dis.svmP<-dis.svm.polT$best.model #poly kern SVM
 pred.svmP<-predict(dis.svmP,newdata=test.set[,1:13])
 table(pred.svmP,test.set$dis) #also favours false -ve
