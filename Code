@@ -1,19 +1,64 @@
 #welcome to the sad life
 
+#set-up
 library(caret)
 library(dplyr)
 library(e1071)
 library(MASS)
 library(mlbench)
+library(psych)
 
+#defined an self programmed function here#
+
+#Starting out
 hDisease<-read.csv("heart-disease.csv",fileEncoding="UTF-8-BOM")
 summary(hDisease) #need to change target to factor
 hDisease<-hDisease%>%mutate(dis=factor(ifelse(target==1,"Disease","Healthy")))
+hDcat<-hDisease[,c(2,3,6,7,9,11:15)] #df of categorical data and relevant factors
+hDcont<-hDisease[,c(1,2,4,5,8,10,14,15)] #df of continuous data and relevant factors
 
 #Explore individual relationship between variables and heart disease
-#confusion matrices and chi-squared for cat, bar/scatter and t-test for cont
+#confusion matrices (or maybe bar) and chi-squared for cat, bar/scatter and t-test for cont (haven't tried yet)
 
-table(hDisease$sex,hDisease$target) #Gender proportion, can do chi-squared
-#establish there may be some distinction between genders
+#Cat variables, chi-squared for T/F(nominal), bar charts of ordinal data
+table(hDisease$sex,hDisease$dis) #Gender proportion, can do chi-squared
+chisq.test(hDisease$sex,hDisease$dis,correct=FALSE) # p = 1*10^-6, implies significant difference
+#night be some problem in the data set cause implies prevalence higher in women (sex=0), not like IRL?
 
-ggplot(hDisease,aes(age,sex,col=dis))+geom_point() #No check for onset, this is current age not onset
+ggplot(hDisease,aes(fill=dis,x=cp))+geom_bar(stat="bin",binwidth=0.5)
+#observe higher portion of disease with reported chest pain, normalise to proportionalilty?
+chisq.test(hDisease$cp,hDcat$dis,correct=FALSE) #significant difference -> not independent
+
+table(hDisease$fbs,hDisease$dis)
+chisq.test(hDisease$fbs,hDisease$dis,correct=FALSE) #sememingly no relation dependence between fbs and HD
+
+table(hDisease$restecg,hDisease$dis)
+chisq.test(hDisease$restecg,hDisease$dis,correct=TRUE) #returns a sig diff but low pop of restecg=2 maybe thorwing off the results
+ggplot(hDisease,aes(fill=dis,x=restecg))+geom_bar(stat="bin",binwidth=0.5) #from here looks like no (strong) relation
+
+table(hDisease$exang,hDisease$dis)
+chisq.test(hDisease$exang,hDisease$dis,correct=FALSE) #indicates exang is a -ve predictor of HD?
+
+ggplot(hDisease,aes(fill=dis,x=slope))+geom_bar(stat="bin",binwidth=0.5)
+#proportion of HD increases with level of slope
+
+ggplot(hDisease,aes(fill=dis,x=ca))+geom_bar(stat="bin",binwidth=0.5)
+#Inverse for ca
+
+ggplot(hDisease,aes(fill=dis,x=thal))+geom_bar(stat="bin",binwidth=0.5) #unclear
+
+#Cont variables, box to a summary of the differences between cont var in healthy vs diseased (mostly normal dist, not very skewed)
+ggplot(hDisease,aes(age,sex,col=dis))+geom_point()#not very helpful
+ggplot(hDisease,aes(dis,age))+geom_boxplot() #median age of healthy is higher, less dispersed
+ggplot(hDisease,aes(dis,trestbps))+geom_boxplot() #doesn't look significantly diff
+
+ggplot(hDisease,aes(dis,chol))+geom_boxplot() #slightly higher for healthy but disease has more extreme high outliers?
+hDHeal<-hDisease%>%filter(dis %in% c("Healthy"))
+mean(hDHeal$chol) #251.087
+hDDis<-hDisease%>%filter(dis %in% c("Disease"))
+mean(hDDis$chol) #242.2303, but why lower?
+
+ggplot(hDisease,aes(dis,thalach))+geom_boxplot() #thalach higher of diseased, less dispersed -> stronger relation?
+ggplot(hDisease,aes(dis,oldpeak))+geom_boxplot() # much lower for disease, weaker heart?
+
+#correlation between cont variables
