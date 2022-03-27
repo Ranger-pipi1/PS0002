@@ -47,7 +47,7 @@ ggplot(hDisease,aes(fill=dis,x=ca))+geom_bar(stat="bin",binwidth=0.5)
 
 ggplot(hDisease,aes(fill=dis,x=thal))+geom_bar(stat="bin",binwidth=0.5) #unclear
 
-#Cont variables, box to a summary of the differences between cont var in healthy vs diseased (mostly normal dist, not very skewed)
+#Cont variables, box to a summary of the differences between cont var in healthy vs diseased
 ggplot(hDisease,aes(age,sex,col=dis))+geom_point()#not very helpful
 ggplot(hDisease,aes(dis,age))+geom_boxplot() #median age of healthy is higher, less dispersed
 ggplot(hDisease,aes(dis,trestbps))+geom_boxplot() #doesn't look significantly diff
