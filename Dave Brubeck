@@ -1,0 +1,152 @@
+library(dplyr)
+library(psych)
+library(caret)
+library(corrplot)
+library(ggplot2)
+library(e1071)
+library(mlbench)
+
+#Import all 5 years Data
+gt1 = read.csv("gt_2011.csv")
+gt2 = read.csv("gt_2012.csv")
+gt3 = read.csv("gt_2013.csv")
+gt4 = read.csv("gt_2014.csv")
+gt5 = read.csv("gt_2015.csv")
+
+#combine into 1 dataframe and visualise
+gtAll<-rbind(gt1,gt2,gt3,gt4,gt5)
+gt1<-mutate(gt1,Year = 2011)
+gt2<-mutate(gt2,Year = 2012)
+gt3<-mutate(gt3,Year = 2013)
+gt4<-mutate(gt4,Year = 2014)
+gt5<-mutate(gt5,Year = 2015)
+gtAll.y = rbind(gt1,gt2,gt3,gt4,gt5) #Year label for data visualisation
+summary(gtAll) #visual inspection shows a dataset free of NA and all variables are continuous except year
+#target focus is on the ghg CO and NOx so we first want to analyse the year on year changes in the variable
+gtSum<-gtAll.y%>%group_by(Year)%>%summarise(At_Av=mean(AT),Ap_Av=mean(AP),Ah_Av=mean(AH),Afdp_Av=mean(AFDP),Gtep_Av=mean(GTEP),Tit_Av=mean(TIT),Tat_Av=mean(TAT),Tey_Av=mean(TEY),Cdp_Av=mean(CDP),CO_Av=mean(CO),Nox_Av=mean(NOX))
+
+
+#We obtain the mean from each year to roughyl get a sense of the year on year changes
+### Not very useful
+ggplot(gtSum,aes(Year,At_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Ap_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Ah_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Afdp_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Gtep_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Tit_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Tat_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Tey_Av))+geom_bar(stat="identity",fill="red")
+ggplot(gtSum,aes(Year,Cdp_Av))+geom_bar(stat="identity",fill="red")
+### Just keep these last two as relevant
+ggplot(gtSum,aes(Year,CO_Av))+geom_bar(stat="identity",fill="red") #only one with somewhat rising trend
+ggplot(gtSum,aes(Year,Nox_Av))+geom_bar(stat="identity",fill="red") #Pretty consitent, lower in 2014/5
+
+#Alt
+gtAll.y%>%group_by(Year)%>%summarise(CO_Av=mean(CO))%>%ggplot(aes(x=Year,y=CO_Av))+geom_bar(stat="identity",fill="red")
+gtAll.y%>%group_by(Year)%>%summarise(Nox_Av=mean(NOX))%>%ggplot(aes(x=Year,y=Nox_Av))+geom_bar(stat="identity",fill="red")
+
+#Year on Year distribution +med, skip bar above
+ggplot(gtAll.y,aes(Year,AT,group=Year))+geom_boxplot() #Roughly consistent in terms of mean and IQR, 2015 more extreme distribution
+ggplot(gtAll.y,aes(Year,AP,group=Year))+geom_boxplot() #Kinda similar but 2012 more -ve outliers, 2015 ouliers on both sides
+ggplot(gtAll.y,aes(Year,AH,group=Year))+geom_boxplot() #2015, much lower than other years, but other years have alot more -ve outliers
+ggplot(gtAll.y,aes(Year,AFDP,group=Year))+geom_boxplot() #2013 most disperse/many +ve outliers, 2012 most outliers overall, 2015 less outliers but right -+ve) skew
+ggplot(gtAll.y,aes(Year,GTEP,group=Year))+geom_boxplot() #All years skewed, 2011/2014 (lesser extent)/2015 right (-ve) skew, rest left (+ve), 2012 many +ve outliers
+ggplot(gtAll.y,aes(Year,TIT,group=Year))+geom_boxplot() #In general very left (+ve) sewed with many -ve outliers
+ggplot(gtAll.y,aes(Year,TIT,group=Year))+geom_boxplot()+ylim(1050,1125) #Main dist shows right skew for 2011/4/5 and mild left skew for 2013
+ggplot(gtAll.y,aes(Year,TAT,group=Year))+geom_boxplot() #even more so than above, why?
+ggplot(gtAll.y,aes(Year,TAT,group=Year))+geom_boxplot()+ylim(530,560) #Extreme left skew for all
+ggplot(gtAll.y,aes(Year,TEY,group=Year))+geom_boxplot() #2012 most range and extreme distibution, 2011 and 2015 right (-ve) skew again, 2012 and 2013 probably not a very normal distribution
+ggplot(gtAll.y,aes(Year,CDP,group=Year))+geom_boxplot() #Kinda similar to above
+ggplot(gtAll.y,aes(Year,CO,group=Year))+geom_boxplot() #Features many +ve outliers, why?
+ggplot(gtAll.y,aes(Year,CO,group=Year))+geom_boxplot()+ylim(0,10) #General rising (via medain, see also bar), 2012/3 right (-ve) skew, 2013/5 largest IQR
+ggplot(gtAll.y,aes(Year,NOX,group=Year))+geom_boxplot() #Slightly lower in 2014/5, all feature many +ve outliers too (otherwise fairly normaly distributions)
+
+#Now examine correlation since all cont. (Ignore year)
+corrplot(cor(gtAll),type="upper",method="color",addCoef.col="black",number.cex=0.6)
+#AP,AH don't show strong correlation to any other variable (mod(r)>0.5), remove for pair matrix
+pairs.panels(gtAll[,-c(2,3)],method="pearson",hist.col="red",pch=2,density=TRUE,ellipses=FALSE) #Don't run this yourself, takes like 30 min
+#in particular, CO potentially has an exponential decay relationship to some of the other variables (TEY,CDP,GTEP and TIT)
+#meanwhile, NOx doesn't appear to have any distinguishable correlation pattern to other variables
+
+
+#####-----TRAINING AND TEST SETS-----#####
+set.seed(100)
+training.idx = sample(1:nrow(gtAll),0.8*nrow(gtAll))
+train.data = gtAll[training.idx,]
+test.data = gtAll[-training.idx,]
+
+
+#####-----MACHINE LEARNING (LINEAR REGRESSION) [CO]-----#####
+linear1_CO = lm(CO~.,data=train.data)
+summary(linear1_CO)
+#All Variables significant (3 stars)
+#adjusted R-Squared: 0.6083
+
+linear2_CO = lm(CO~.+exp(-1*TEY)+exp(-1*TIT)+exp(-1*CDP)+exp(-1*GTEP),data=train.data)
+summary(linear2_CO)
+#All Variables significant (3 stars) less AFDP, GTEP, TIT and exp(-TIT)
+#adjusted R-Squared: 0.6474 
+
+#Prediction and Analysis
+linear1_CO_prediction = predict(linear1_CO,test.data)
+plot(linear1_CO_prediction,test.data$CO)+abline(0,1,col="red")
+RMSE(linear1_CO_prediction,test.data$CO) ### RMSE = 1.4346
+
+linear2_CO_prediction = predict(linear2_CO,test.data)
+plot(linear2_CO_prediction,test.data$CO)+abline(0,1,col="red")
+RMSE(linear2_CO_prediction,test.data$CO) ### RMSE = 1.422926, only marginally better, maybe don't need
+
+
+#####-----MACHINE LEARNING (LINEAR REGRESSION) [NO]-----#####
+linear1_NO = lm(NOX~.,data=train.data) #No need for non-linear variables
+summary(linear1_NO)
+#All Variables Significant (3 stars)
+#adjusted R-squared: 0.5703
+
+#Prediction and Analysis
+linear1_NO_prediction = predict(linear1_NO,test.data)
+plot(linear1_NO_prediction,test.data$NOX)+abline(0,1,col="red")
+RMSE(linear1_NO_prediction,test.data$NOX) ### RMSE = 7.7409
+
+
+#####-----MACHINE LEARNING (kNN) [CO]-----#####
+kNN1_CO = train(CO~.,data = train.data, method = "knn", trControl=trainControl("cv",number=588),preProcess=c("center","scale"),tuneLength=20)
+kNN1_CO_prediction = predict(kNN1_CO,test.data)
+RMSE(kNN1_CO_prediction,test.data$CO) ### RMSE = 1.0500
+plot(kNN1_CO_prediction,test.data$CO) +abline(0,1,col="red")
+#Someone please help me generate the plot, my com too lousy
+
+
+#####-----MACHINE LEARNING (kNN) [NO]-----#####
+kNN1_NO = train(NOX~.,data = train.data, method = "knn", trControl=trainControl("cv",number=588),preProcess=c("center","scale"),tuneLength=20)
+kNN1_NO_prediction = predict(kNN1_NO, test.data)
+RMSE(kNN1_NO_prediction,test.data$NOX) ### RMSE = 4.105
+plot(kNN1_NO_prediction,test.data$NOX) +abline(0,1,col="red")
+#Someone please help me generate the plot, my com too lousy
+
+
+#####-----MACHINE LEARNING (K means)-----#####
+gtScale = scale(gtAll) #make suitable for k means clustering, remove years
+
+#Finding optimal k#
+wcss<-function(k){kmeans(gtScale, k, nstart=25)$tot.withinss}
+k.values<-1:15
+wcss_k<-sapply(k.values, wcss)
+plot(k.values, wcss_k, type="b", pch=19, frame=FALSE, xlab="Number of clusters K", ylab="Total within-clusters sum of squares")
+# k = 6 selected based on elbow method
+
+gtKmeans<-kmeans(gtScale, 6, nstart=25)
+gtAll.Clus1<-gtAll %>% mutate(cluster=gtKmeans$cluster)
+group_by(gtAll.Clus1,cluster)%>% summarise_all('mean') #Ignor year average, doesn't mean anything
+#Group 6 is the higih CO,NOx group, comparison of this group with the others may yield useful insights
+#Group 2 is high TEY, not sure about the other groups
+
+
+#####-----MACHINE LEARNING (HC)-----#####
+d = dist(arr, method = 'euclidean') #create the distance vector
+hc = hclust(d, method='complete')
+plot(hc, cex=0.6, hang=-1)
+rect.hclust(hc, k=6, border = 2:7)
+cutree(hc, k=6)
+# I can't check this could my com doesn't have 5GB of RAM to run lmao
+# apparently messy, someone else please generate the tree diagram
